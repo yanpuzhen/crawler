@@ -67,18 +67,57 @@ def summarize_with_sumy(text, sentences_count=2):
         # Fallback if Sumy fails (e.g. text too short or weird chars)
         return text
 
-def main():
-    print(f"Reading from {INPUT_FILE}...")
+def load_all_history():
+    """Load and aggregate all daily news files"""
+    all_items = []
+    seen_ids = set()
     
-    if not os.path.exists(INPUT_FILE):
-        print("No input file found. Run main.py first.")
-        return
+    # Check for both news_*.json and latest_news.json
+    # Actually, we should iterate all files in DATA_DIR matching pattern
+    files = [f for f in os.listdir(DATA_DIR) if f.startswith('news_') and f.endswith('.json')]
+    files.sort() # Oldest to newest
+    
+    # Also include latest_news.json if not redundant (it usually is redundant with today's file, but let's be safe)
+    # files.append('latest_news.json') 
+    
+    print(f"Found {len(files)} historical data files.")
+    
+    for filename in files:
+        path = os.path.join(DATA_DIR, filename)
+        try:
+            with open(path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                items = data.get("data", [])
+                for item in items:
+                    # Deduplicate by GUID or Link
+                    uid = item.get("guid") or item.get("link")
+                    if uid not in seen_ids:
+                        seen_ids.add(uid)
+                        all_items.append(item)
+        except Exception as e:
+            print(f"Skipping corrupt file {filename}: {e}")
+            
+    # Also load latest_news.json to ensure we have the absolute latest if the daily file wasn't written yet?
+    # main.py writes both. So iterating news_*.json is sufficient generally.
+    # But if main.py changes... let's adding latest_news just in case, handling dupes.
+    if os.path.exists(INPUT_FILE):
+        try:
+           with open(INPUT_FILE, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                for item in data.get("data", []):
+                     uid = item.get("guid") or item.get("link")
+                     if uid not in seen_ids:
+                        seen_ids.add(uid)
+                        all_items.append(item)
+        except: pass
 
-    with open(INPUT_FILE, 'r', encoding='utf-8') as f:
-        raw = json.load(f)
-        
-    items = raw.get("data", [])
-    print(f"Processing {len(items)} raw items...")
+    return all_items
+
+def main():
+    print(f"Aggregating history from {DATA_DIR}...")
+    
+    items = load_all_history()
+    print(f"Processing {len(items)} total unique items...")
     
     cleaned_items = []
     
