@@ -179,7 +179,9 @@ def main():
             if len(final_summary) > 300: # Safety truncation even after Sumy
                  final_summary = final_summary[:297] + "..."
                 
-            md_lines.append(f"-{ticker_str} {news['title']}")
+            # Parse date for display
+            pub_date = news.get('published', '')[:10] # Simple YYYY-MM-DD
+            md_lines.append(f"- [{pub_date}]{ticker_str} {news['title']}")
             if final_summary and final_summary != news['title']:
                 md_lines.append(f"  > {final_summary}")
         md_lines.append("")
