@@ -151,8 +151,32 @@ def main():
             seen_titles.add(clean_title)
             all_news.append(item)
         print(f"Fetched {len(news_items)} items from {name}")
-        
-    # 2. Social Media
+
+    # 2. Google News Watchlist (Double Insurance)
+    # Target major movers and ETFs to ensure "Search" coverage
+    WATCHLIST = ["SPY", "QQQ", "NVDA", "TSLA", "AAPL", "MSFT", "AMD", "META", "AMZN", "GOOGL", "BTC", "ETH"]
+    print("Fetching Google News for Watchlist...")
+    
+    for symbol in WATCHLIST:
+        try:
+            # Google News RSS Search
+            g_url = f"https://news.google.com/rss/search?q={symbol}+stock+news+when:1d&hl=en-US&gl=US&ceid=US:en"
+            # Use fetch_rss helper but label source
+            g_items = fetch_rss(f"GoogleNews_{symbol}", g_url)
+            
+            count = 0
+            for item in g_items:
+                # Deduplicate
+                clean_title = re.sub(r'\\W+', '', item['title'].lower())
+                if clean_title in seen_titles: continue
+                seen_titles.add(clean_title)
+                all_news.append(item)
+                count += 1
+            # print(f"  + {symbol}: {count} new items")
+        except Exception as e:
+            print(f"Error fetching Google News for {symbol}: {e}")
+
+    # 3. Social Media
     st_items = fetch_stocktwits()
     all_news.extend(st_items)
     print(f"Fetched {len(st_items)} items from Stocktwits")
@@ -164,6 +188,10 @@ def main():
     reddit_stocks = fetch_reddit("stocks")
     all_news.extend(reddit_stocks)
     print(f"Fetched {len(reddit_stocks)} items from Reddit Stocks")
+    
+    trading_items = fetch_reddit("trading") # Added for TradingView-like general discussions
+    all_news.extend(trading_items)
+    print(f"Fetched {len(trading_items)} items from Reddit Trading")
 
     # Save Daily Digest
     timestamp = datetime.now(pytz.utc).strftime("%Y-%m-%d")
