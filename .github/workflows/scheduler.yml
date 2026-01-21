@@ -1,0 +1,41 @@
+name: Daily News Crawler
+
+on:
+  schedule:
+    - cron: '30 * * * *' # Run every hour on the 30th minute
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  crawl:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Important: Allow pushing back to repo
+      
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v3
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+        
+    - name: Install dependencies
+      run: |
+        cd crawler
+        pip install -r requirements.txt
+        
+    - name: Run Crawler & Cleaner
+      run: |
+        cd crawler
+        python -m nltk.downloader punkt
+        python main.py
+        python cleaner.py
+        
+    - name: Commit and Push
+      run: |
+        git config --global user.name 'GitHub Action Crawler'
+        git config --global user.email 'action@github.com'
+        git add crawler/data/
+        git commit -m "chore: update news data [skip ci]" || echo "No changes to commit"
+        git push
